@@ -294,6 +294,15 @@ impl<'a, 'b> Container<'a, 'b> {
         self.docker.stream_get(&path.join("?"))
     }
 
+    /// Attaches to a running container, returning a stream that can
+    /// be used to interact with the standard IO streams.
+    pub fn attach(&self) -> Result<impl Read + Write> {
+        let data = "{}";
+        self.docker.stream_post_upgrade(
+            &format!("/containers/{}/attach", self.id),
+            Some((data.as_bytes(), mime::APPLICATION_JSON)))
+    }
+
     /// Returns a set of changes made to the container instance
     pub fn changes(&self) -> Result<Vec<Change>> {
         let raw = self.docker.get(
@@ -799,6 +808,16 @@ impl Docker {
         B: Into<Body>,
     {
         self.transport.stream(Method::POST, endpoint, body)
+    }
+
+    fn stream_post_upgrade<B>(
+        &self,
+        endpoint: &str,
+        body: Option<(B, Mime)>,
+    ) -> Result<impl Read + Write>
+    where
+        B: Into<Body> {
+        self.transport.stream_upgrade(Method::POST, endpoint, body)
     }
 
     fn stream_get(&self, endpoint: &str) -> Result<Box<Read>> {

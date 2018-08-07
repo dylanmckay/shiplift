@@ -70,8 +70,7 @@ impl Transport {
         body: Option<(B, Mime)>,
     ) -> Result<Request<Body>>
     where
-        B: Into<Body>,
-    {
+        B: Into<Body> {
         let mut builder = Request::builder();
         let req = match *self {
             Transport::Tcp {
@@ -179,6 +178,35 @@ impl Transport {
             }
             _ => unreachable!(),
         }
+    }
+
+    /**
+     * Makes an HTTP request, upgrading the connection to a TCP
+     * stream on success.
+     *
+     * This method can be used for operations such as viewing
+     * docker container logs interactively.
+     */
+    pub fn stream_upgrade<B>(
+        &self,
+        method: Method,
+        endpoint: &str,
+        body: Option<(B, Mime)>,
+    ) -> Result<impl Read + Write>
+    where
+        B: Into<Body>
+    {
+        let req = self.build_request(method, endpoint, body)?;
+        let upgraded = self.send_request(req).and_then(|res| {
+            if res.status() != StatusCode::SWITCHING_PROTOCOLS {
+                panic!("Our server didn't upgrade: {}", res.status());
+            }
+
+            res.into_body()
+               .on_upgrade()
+        }).wait()?;
+
+        Ok(upgraded)
     }
 
     fn send_request(&self, req: Request<hyper::Body>) -> hyper::client::ResponseFuture {
