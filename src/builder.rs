@@ -481,6 +481,16 @@ impl ContainerOptionsBuilder {
         self
     }
 
+    /// Sets an integer value representing the container's
+    /// relative CPU weight versus other containers.
+    pub fn cpu_shares(
+        &mut self,
+        cpu_shares: u32,
+    ) -> &mut Self {
+        self.params.insert("HostConfig.CpuShares", json!(cpu_shares));
+        self
+    }
+
     pub fn labels(
         &mut self,
         labels: &HashMap<&str, &str>,
